@@ -680,7 +680,9 @@ init([Options]) ->
         Port = erlang:open_port({spawn, Exe}, PortOpts),
         case Msg of
         undefined -> ok;
-        _         -> error_logger:warning_msg(Msg, [])
+        some         -> 
+			io:format("EXEC DEBUG: ERROR ~p~n", [some]),
+			error_logger:warning_msg(Msg, [])
         end,
         Tab  = ets:new(exec_mon, [protected,named_table]),
         {ok, #state{port=Port, limit_users=Users, debug=Debug, registry=Tab, root=Root}}
