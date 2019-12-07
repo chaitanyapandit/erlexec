@@ -604,6 +604,7 @@ default(Option) ->
 %% @private
 %%-----------------------------------------------------------------------
 init([Options]) ->
+    io:format("EXEC DEBUG: Options ~p~n", [Options]),
     process_flag(trap_exit, true),
     Opts0 = proplists:expand([{debug,   [{debug, 1}]},
                               {root,    [{root, true}]},
