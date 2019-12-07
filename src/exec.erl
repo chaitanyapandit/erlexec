@@ -645,6 +645,7 @@ init([Options]) ->
                 throw("Cannot find file " ++ Exe0 ++ ": " ++ file:format_error(Err))
             end,
     IsRoot= os:getenv("USER") =:= "root",
+    io:format("EXEC DEBUG: Exe0 ~p~n", [Exe0]),
     io:format("EXEC DEBUG: Users ~p~n", [Users]),
     io:format("EXEC DEBUG: User ~p~n", [User]),
     io:format("EXEC DEBUG: Root ~p~n", [Root]),
@@ -653,17 +654,21 @@ init([Options]) ->
     io:format("EXEC DEBUG: IsRoot ~p~n", [IsRoot]),
     {Exe,Msg} =
             if (SUID orelse Root orelse IsRoot) andalso User =:= undefined ->
+		   	 	io:format("EXEC DEBUG: FIRST CLAUSE ~n", []),
                 % Don't allow to run port program with SUID bit without effective user set!
                 throw("Port program " ++ Exe0 ++
                       " with SUID bit set is not allowed to run without setting effective user!");
             not Root, User =/= undefined ->
+	   	 		io:format("EXEC DEBUG: SECOND CLAUSE ~n", []),
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
                 {lists:append(["/usr/bin/sudo -u ", U, " ", Exe0, Args]), undefined};
             Root, User =/= undefined, User =/= root, User =/= "root", User =/= 0 ->
+   	 			io:format("EXEC DEBUG: THIRD CLAUSE ~n", []),
                 % Running as root that will switch to another effective user with SUID support
                 {lists:append(["/usr/bin/sudo ", Exe0, " -suid", Args]), undefined};
             true ->
+ 				io:format("EXEC DEBUG: FOURTH CLAUSE ~n", []),
                 {Exe0 ++ Args, undefined}
             end,
     try
