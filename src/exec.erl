@@ -660,7 +660,7 @@ init([Options]) ->
                 throw("Port program " ++ Exe0 ++
                       " with SUID bit set is not allowed to run without setting effective user!");
             not Root, User =/= undefined ->
-	   	 		io:format("EXEC DEBUG: SECOND CLAUSE ~n", []),
+	   	 		io:format("EXEC DEBUG: SECOND one CLAUSE ~n", []),
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
                 {lists:append([" -u ", U, " ", Exe0, Args]), undefined};
