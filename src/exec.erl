@@ -568,6 +568,7 @@ default() ->
      {args, ""},        % Extra arguments that can be passed to port program
      {alarm, 12},
      {user, ""},        % Run port program as this user
+	 {portexe, noportexe},
      {limit_users, []}]. % Restricted list of users allowed to run commands
 %% @private
 default(portexe) ->
