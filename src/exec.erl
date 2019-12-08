@@ -664,7 +664,7 @@ init([Options]) ->
 	   	 		io:format("EXEC DEBUG: SECOND CLAUSE ~n", []),
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
-                {lists:append(["/usr/bin/sudo "PATH=$PATH" -u ", U, " ", Exe0, Args]), undefined};
+                {lists:append(["/usr/bin/sudo PATH=$PATH -u ", U, " ", Exe0, Args]), undefined};
             Root, User =/= undefined, User =/= root, User =/= "root", User =/= 0 ->
    	 			io:format("EXEC DEBUG: THIRD CLAUSE ~n", []),
                 % Running as root that will switch to another effective user with SUID support
