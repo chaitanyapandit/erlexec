@@ -672,7 +672,6 @@ init([Options]) ->
             not Root, User =/= undefined ->
     			io:format("EXEC DEBUG: Entering 2~n", []),
                 % Running as another effective user
-                U = if is_atom(User) -> atom_to_list(User); true -> User end,
                 {Exe0 ++ Args, undefined};
             SUID, EffUsr/="root", EffUsr/=User, User/=undefined, User/=root, User/="root" ->
 				io:format("EXEC DEBUG: Entering 3~n", []),
