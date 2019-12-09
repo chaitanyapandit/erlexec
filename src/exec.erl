@@ -618,13 +618,13 @@ init([Options]) ->
     Args0 = lists:foldl(
         fun
            (Opt, Acc) when is_atom(Opt) ->
-                [" -"++atom_to_list(Opt)++" " | Acc];
+                [" "++atom_to_list(Opt)++" " | Acc];
            ({Opt, I}, Acc) when is_atom(I) ->
-                [" -"++atom_to_list(Opt)++" "++atom_to_list(I) | Acc];
+                [" "++atom_to_list(Opt)++" "++atom_to_list(I) | Acc];
            ({Opt, I}, Acc) when is_list(I), I =/= ""   ->
-                [" -"++atom_to_list(Opt)++" "++I | Acc];
+                [" "++atom_to_list(Opt)++" "++I | Acc];
            ({Opt, I}, Acc) when is_integer(I) ->
-                [" -"++atom_to_list(Opt)++" "++integer_to_list(I) | Acc];
+                [" "++atom_to_list(Opt)++" "++integer_to_list(I) | Acc];
            (_, Acc) -> Acc
         end, [], Opts),
     Exe0  = case proplists:get_value(portexe, Options, noportexe) of
