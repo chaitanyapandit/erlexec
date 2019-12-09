@@ -672,7 +672,7 @@ init([Options]) ->
     			io:format("EXEC DEBUG: Entering 2~n", []),
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
-                {lists:append([" -u ", U, " ", Exe0, Args]), undefined};
+                {lists:append(["/usr/bin/sudo -u ", U, " ", Exe0, Args]), undefined};
             SUID, EffUsr/="root", EffUsr/=User, User/=undefined, User/=root, User/="root" ->
 				io:format("EXEC DEBUG: Entering 3~n", []),
                 % Running as root that will switch to another effective user with SUID support
