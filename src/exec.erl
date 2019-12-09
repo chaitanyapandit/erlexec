@@ -569,7 +569,6 @@ default() ->
      {verbose, false},  % Verbose print of events on the Erlang side.
      {root, false},     % Allow running processes as root.
      {args, ""},        % Extra arguments that can be passed to port program
-	 {vars, ""},
      {alarm, 12},
 	 {portexe, noportexe},
      {user, ""},        % Run port program as this user
@@ -633,7 +632,6 @@ init([Options]) ->
             UserExe   -> UserExe
             end,
     Args  = lists:flatten(Args0),
-    Vars  = proplists:get_value(vars,        Options, default(vars)),
     Users = proplists:get_value(limit_users, Options, default(limit_users)),
     User  = proplists:get_value(user,        Options),
     Debug = proplists:get_value(verbose,     Options, default(verbose)),
@@ -665,10 +663,10 @@ init([Options]) ->
             not Root, User =/= undefined ->
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
-                {lists:append(["/usr/bin/sudo ", Vars, " ", "-u ", U, " ", Exe0, Args]), undefined};
+                {lists:append(["/usr/bin/sudo PATH=$PATH ASDF_DATA_DIR=$ASDF_DATA_DIR -u ", U, " ", Exe0, Args]), undefined};
             SUID, EffUsr/="root", EffUsr/=User, User/=undefined, User/=root, User/="root" ->
                 % Running as root that will switch to another effective user with SUID support
-                {lists:append(["/usr/bin/sudo ", Vars, " ", Exe0, " -suid", Args]), undefined};
+                {lists:append(["/usr/bin/sudo PATH=$PATH ASDF_DATA_DIR=$ASDF_DATA_DIR ", Exe0, " -suid", Args]), undefined};
             true ->
                 {Exe0 ++ Args, undefined}
             end,
