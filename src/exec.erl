@@ -618,13 +618,13 @@ init([Options]) ->
     Args0 = lists:foldl(
         fun
            (Opt, Acc) when is_atom(Opt) ->
-                [" -"++atom_to_list(Opt)++" " | Acc];
+                [" "++atom_to_list(Opt)++" " | Acc];
            ({Opt, I}, Acc) when is_atom(I) ->
-                [" -"++atom_to_list(Opt)++" "++atom_to_list(I) | Acc];
+                [" "++atom_to_list(Opt)++" "++atom_to_list(I) | Acc];
            ({Opt, I}, Acc) when is_list(I), I =/= ""   ->
-                [" -"++atom_to_list(Opt)++" "++I | Acc];
+                [" "++atom_to_list(Opt)++" "++I | Acc];
            ({Opt, I}, Acc) when is_integer(I) ->
-                [" -"++atom_to_list(Opt)++" "++integer_to_list(I) | Acc];
+                [" "++atom_to_list(Opt)++" "++integer_to_list(I) | Acc];
            (_, Acc) -> Acc
         end, [], Opts),
     Exe0  = case proplists:get_value(portexe, Options, noportexe) of
@@ -651,23 +651,35 @@ init([Options]) ->
             end,
     EffUsr= os:getenv("USER"),
     IsRoot= EffUsr =:= "root",
+    io:format("EXEC DEBUG: Users ~p~n", [Users]),
+    io:format("EXEC DEBUG: User ~p~n", [User]),
+    io:format("EXEC DEBUG: Root ~p~n", [Root]),
+    io:format("EXEC DEBUG: Env ~p~n", [Env]),
+	io:format("EXEC DEBUG: SUID ~p~n", [SUID]),
+    io:format("EXEC DEBUG: IsRoot ~p~n", [IsRoot]),
     {Exe,Msg} =
+		    io:format("EXEC DEBUG: Entering 1~n", []),
             if SUID andalso Root; IsRoot ->
                 if User==undefined orelse User=="" ->
+			    	io:format("EXEC DEBUG: Entering 1a~n", []),
                     % Don't allow to run port program with SUID bit without effective user set!
                     throw("Port program " ++ Exe0 ++
                           " is not allowed to run without specifying effective user ({user, User})!");
                 true ->
+		    		io:format("EXEC DEBUG: Entering 1b~n", []),
                     {Exe0++Args, undefined}
                 end;
             not Root, User =/= undefined ->
+    			io:format("EXEC DEBUG: Entering 2~n", []),
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
-                {lists:append(["/usr/bin/sudo -u ", U, " ", Exe0, Args]), undefined};
+                {Exe0 ++ Args, undefined}
             SUID, EffUsr/="root", EffUsr/=User, User/=undefined, User/=root, User/="root" ->
+				io:format("EXEC DEBUG: Entering 3~n", []),
                 % Running as root that will switch to another effective user with SUID support
                 {lists:append(["/usr/bin/sudo ", Exe0, " -suid", Args]), undefined};
             true ->
+				io:format("EXEC DEBUG: Entering 4~n", []),
                 {Exe0 ++ Args, undefined}
             end,
     try
