@@ -658,7 +658,6 @@ init([Options]) ->
 	io:format("EXEC DEBUG: SUID ~p~n", [SUID]),
     io:format("EXEC DEBUG: IsRoot ~p~n", [IsRoot]),
     {Exe,Msg} =
-		    io:format("EXEC DEBUG: Entering 1~n", []),
             if SUID andalso Root; IsRoot ->
                 if User==undefined orelse User=="" ->
 			    	io:format("EXEC DEBUG: Entering 1a~n", []),
