@@ -569,7 +569,7 @@ default() ->
      {verbose, false},  % Verbose print of events on the Erlang side.
      {root, false},     % Allow running processes as root.
      {args, ""},        % Extra arguments that can be passed to port program
-     {vars, ""},
+     {var, ""},
      {alarm, 12},
 	 {portexe, noportexe},
      {user, ""},        % Run port program as this user
@@ -641,7 +641,7 @@ init([Options]) ->
             undefined -> [];
             Other     -> [{env, Other}]
             end,
-    Vars  = case proplists:get_value(vars, Options) of
+    Var	  = case proplists:get_value(var, Options) of
             Atom when is_atom(Atom) -> atom_to_list(Atom);
             Binary when is_binary(Binary) -> binary_to_list(Binary);
             undefined -> ""
@@ -669,10 +669,10 @@ init([Options]) ->
             not Root, User =/= undefined ->
                 % Running as another effective user
                 U = if is_atom(User) -> atom_to_list(User); true -> User end,
-                {lists:append(["/usr/bin/sudo ", Vars, " ", "-u ", U, " ", Exe0, Args]), undefined};
+                {lists:append(["/usr/bin/sudo ", Var, " ", "-u ", U, " ", Exe0, Args]), undefined};
             SUID, EffUsr/="root", EffUsr/=User, User/=undefined, User/=root, User/="root" ->
                 % Running as root that will switch to another effective user with SUID support
-                {lists:append(["/usr/bin/sudo ", Vars, " ", Exe0, " -suid", Args]), undefined};
+                {lists:append(["/usr/bin/sudo ", Var, " ", Exe0, " -suid", Args]), undefined};
             true ->
                 {Exe0 ++ Args, undefined}
             end,
