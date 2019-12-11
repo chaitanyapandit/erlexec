@@ -591,6 +591,7 @@ default() ->
      {args, ""},        % Extra arguments that can be passed to port program
      {alarm, 12},
      {portexe, noportexe},
+     {var, ""},
      {user, ""},        % Run port program as this user
      {limit_users, []}]. % Restricted list of users allowed to run commands
 %% @private
@@ -663,16 +664,22 @@ init([Options]) ->
             undefined -> [];
             Other     -> [{env, Other}]
             end,
+    Var0	  = case proplists:get_value(var, Options) of
+            Atom when is_atom(Atom) -> atom_to_list(Atom);
+            Binary when is_binary(Binary) -> binary_to_list(Binary);
+            undefined -> ""
+            end,
+    Var     = " "++Var0++" ",
     % When instructing to run as root, check that the port program has
     % the SUID bit set or else use "sudo"
     {SUID,NeedSudo} = is_suid_and_root_owner(Exe0),
     EffUsr= os:getenv("USER"),
     IsRoot= EffUsr =:= "root",
     Exe   = if not Root ->
-                Exe0++Args;
+                Exe0++Var++Args;
             Root, IsRoot, User/=undefined, User/="", ((SUID     andalso Users/=[]) orelse
                                                       (not SUID andalso Users==[])) ->
-                Exe0++Args;
+                Exe0++Var++Args;
             %Root, not IsRoot, NeedSudo, User/=undefined, User/="" ->
                 % Asked to enable root, but running as non-root, and have no SUID: use sudo.
             %    lists:append(["/usr/bin/sudo -u ", to_list(User), " ", Exe0, Args]);
@@ -683,7 +690,7 @@ init([Options]) ->
                 % Asked to enable root, but running as non-root, and have SUID: use sudo.
                 lists:append(["/usr/bin/sudo ", Exe0, Args]);
             true ->
-                Exe0++Args
+                Exe0++Var++Args
             end,
     debug(Debug, "exec: ~s~sport program: ~s\n~s",
         [if SUID -> "[SUID] "; true -> "" end,
