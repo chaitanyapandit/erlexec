@@ -589,6 +589,7 @@ default() ->
      {verbose, false},  % Verbose print of events on the Erlang side.
      {root, false},     % Allow running processes as root.
      {args, ""},        % Extra arguments that can be passed to port program
+	 {vars, ""},
      {alarm, 12},
      {portexe, noportexe},
      {user, ""},        % Run port program as this user
@@ -652,6 +653,11 @@ init([Options]) ->
             UserExe   -> UserExe
             end,
     Args  = lists:flatten(Args0),
+	Vars  = " " ++ case proplists:get_value(vars, Options) of
+	             Atom when is_atom(Atom) -> atom_to_list(Atom);
+	             Binary when is_binary(Binary) -> binary_to_list(Binary);
+	             undefined -> ""
+	             end ++ " ",
     Users = case proplists:get_value(limit_users, Options, default(limit_users)) of
             [] -> [];
             L  -> [to_list(I) || I <- L]
@@ -668,11 +674,12 @@ init([Options]) ->
     {SUID,NeedSudo} = is_suid_and_root_owner(Exe0),
     EffUsr= os:getenv("USER"),
     IsRoot= EffUsr =:= "root",
+    debug(Debug, "SUID: ~p NeedSudo: ~p EffUsr: ~p\n", [SUID, NeedSudo, EffUsr]),
     Exe   = if not Root ->
-                Exe0++Args;
+                Exe0++Args++Vars;
             Root, IsRoot, User/=undefined, User/="", ((SUID     andalso Users/=[]) orelse
                                                       (not SUID andalso Users==[])) ->
-                Exe0++Args;
+                Exe0++Args++Vars;
             %Root, not IsRoot, NeedSudo, User/=undefined, User/="" ->
                 % Asked to enable root, but running as non-root, and have no SUID: use sudo.
             %    lists:append(["/usr/bin/sudo -u ", to_list(User), " ", Exe0, Args]);
@@ -681,9 +688,9 @@ init([Options]) ->
                                                        andalso User/=root
                                                        andalso User/="root")) ->
                 % Asked to enable root, but running as non-root, and have SUID: use sudo.
-                lists:append(["/usr/bin/sudo ", Exe0, Args]);
+                lists:append(["/usr/bin/sudo ", Exe0, Args, Vars]);
             true ->
-                Exe0++Args
+                Exe0++Args++Vars
             end,
     debug(Debug, "exec: ~s~sport program: ~s\n~s",
         [if SUID -> "[SUID] "; true -> "" end,
@@ -992,7 +999,7 @@ is_suid_and_root_owner(File) ->
     case file:read_file_info(File) of
     {ok, Info} ->
         {(Info#file_info.mode band 8#4500) =:= 8#4500,
-         (Info#file_info.uid =/= 0)};
+         (Info#file_info.uid == 0)};
     {error, Err} ->
         throw("Cannot find file " ++ File ++ ": " ++ file:format_error(Err))
     end.
