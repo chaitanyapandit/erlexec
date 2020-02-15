@@ -665,7 +665,8 @@ init([Options]) ->
             end,
     % When instructing to run as root, check that the port program has
     % the SUID bit set or else use "sudo"
-    {SUID,NeedSudo} = is_suid_and_root_owner(Exe0),
+    {SUID,_} = is_suid_and_root_owner(Exe0),
+	NeedSudo=true,
     EffUsr= os:getenv("USER"),
     IsRoot= EffUsr =:= "root",
     Exe   = if not Root ->
