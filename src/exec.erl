@@ -685,6 +685,10 @@ init([Options]) ->
             true ->
                 Exe0++Args
             end,
+			
+    debug(Debug, "SUID: ~p NeedSudo: ~p\n", [SUID, NeedSudo]),
+    debug(Debug, "EffUsr: ~p IsRoot: ~p EXE:~p \n", [EffUsr, IsRoot, Exe]),
+	
     debug(Debug, "exec: ~s~sport program: ~s\n~s",
         [if SUID -> "[SUID] "; true -> "" end,
          if (Root orelse IsRoot) andalso User =:= undefined -> "[ROOT] "; true -> "" end,
