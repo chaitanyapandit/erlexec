@@ -72,6 +72,7 @@ bool  ei::pipe_valid      = true;
 int   ei::max_fds;
 int   ei::dev_null;
 int   ei::sigchld_pipe[2] = { -1, -1 }; // Pipe for delivering sig child details
+int   run_as_euid         = INT_MAX;
 
 //-------------------------------------------------------------------------
 // Types & variables
@@ -87,7 +88,7 @@ pid_t           ei::self_pid;
 // Local Functions
 //-------------------------------------------------------------------------
 bool    process_command();
-void    initialize(int userid, bool use_alt_fds, bool enable_suid,
+void    initialize(int userid, bool use_alt_fds, bool is_root,
                    bool requested_root);
 int     finalize(fd_set& read_fds);
 
@@ -101,7 +102,7 @@ void usage(char* progname) {
         "   %s [-n] [-root] [-alarm N] [-debug [Level]] [-user User]\n"
         "Options:\n"
         "   -n              - Use marshaling file descriptors 3&4 instead of default 0&1.\n"
-        "   -suid           - Allow running child processes as other effective UIDs (using capabilities).\n"
+        "   --whoami        - Output the name of effective user and exit\n"
         "   -alarm N        - Allow up to <N> seconds to live after receiving SIGTERM/SIGINT (default %d)\n"
         "   -debug [Level]  - Turn on debug mode (default Level: 1)\n"
         "   -user User      - If started by root, run as User\n"
@@ -123,9 +124,8 @@ int main(int argc, char* argv[])
     struct sigaction sact, sterm;
     int    userid         = 0;
     bool   use_alt_fds    = false;
-    bool   enable_suid    = false;
+    bool   is_root        = geteuid() == 0;
     bool   requested_root = false;
-    bool   is_suid_set    = false;
 
     self_pid = getpid();
 
@@ -155,6 +155,10 @@ int main(int argc, char* argv[])
                     usage(argv[0]);
             } else if (strcmp(argv[res], "-n") == 0) {
                 use_alt_fds = true;
+            } else if (strcmp(argv[res], "--whoami") == 0) {
+                struct passwd* pws = getpwuid(geteuid());
+                fprintf(stderr, "%s\n", pws->pw_name);
+                exit(0);
             } else if (strcmp(argv[res], "-user") == 0 && res+1 < argc && argv[res+1][0] != '-') {
                 char* run_as_user = argv[++res];
                 struct stat    st;
@@ -164,23 +168,22 @@ int main(int argc, char* argv[])
                     fprintf(stderr, "User %s not found!\r\n", run_as_user);
                     exit(3);
                 }
-                userid = pw->pw_uid;
+                run_as_euid = userid = pw->pw_uid;
                 if (stat(argv[0], &st) < 0) {
                     fprintf(stderr, "Cannot stat the %s file: %s\r\n", argv[0],
                                     strerror(errno));
                     exit(3);
                 }
-                is_suid_set = st.st_mode & S_ISUID && st.st_uid == 0;
+                if (st.st_mode & S_ISUID && st.st_uid == 0)
+                    is_root = true;
                 if (debug > 2)
                     fprintf(stderr, "SUID bit %sset on %s owned by uid=%d\r\n",
                                     argv[0], (st.st_mode & S_ISUID) ? "" : " NOT", st.st_uid);
-            } else if (strcmp(argv[res], "-suid") == 0) {
-                enable_suid = true;
             }
         }
     }
 
-    initialize(userid, use_alt_fds, enable_suid || is_suid_set, requested_root);
+    initialize(userid, use_alt_fds, is_root, requested_root);
 
     // Set up a pipe to deliver SIGCHLD details to pselect() and setup SIGCHLD handler
     if (pipe(sigchld_pipe) < 0) {
@@ -350,7 +353,7 @@ bool process_command()
         }
         case RUN: {
             // {run, Cmd::string(), Options::list()}
-            CmdOptions po;
+            CmdOptions po(run_as_euid);
 
             if (arity != 3 || po.ei_decode(eis, true) < 0) {
                 send_error_str(transId, false, po.strerror());
@@ -483,33 +486,34 @@ bool process_command()
     return true;
 }
 
-void initialize(int userid, bool use_alt_fds, bool enable_suid, bool requested_root)
+int ei::set_euid(int userid)
 {
-    if ((getuid() == 0 && userid > 0) || (getuid() != 0 && enable_suid)) {
-        if (
-            #ifdef HAVE_SETRESUID
-            setresuid(-1, userid, geteuid()) // glibc, FreeBSD, OpenBSD, HP-UX
-            #elif HAVE_SETREUID
-            setreuid(-1, userid)             // MacOSX, NetBSD, AIX, IRIX, Solaris>=2.5, OSF/1, Cygwin
-            #else
-            #error setresuid(3) not supported!
-            #endif
-        < 0) {
-            perror("Failed to set effective userid");
-            exit(4);
-        }
+    #ifdef HAVE_SETRESUID
+    int res = setresuid(-1, userid, geteuid()); // glibc, FreeBSD, OpenBSD, HP-UX
+    #elif HAVE_SETREUID
+    int res = setreuid(-1,  userid);            // MacOSX, NetBSD, AIX, IRIX, Solaris>=2.5, OSF/1, Cygwin
+    #else
+    #error setresuid(3) not supported!
+    #endif
+    return res < 0 ? res : geteuid();
+}
 
-        if (debug)
-            fprintf(stderr, "Initializing: uid=0, euid=%d, userid=%d%s\r\n",
-                getuid(), userid, enable_suid?" enable-suid":"");
+void initialize(int userid, bool use_alt_fds, bool is_root, bool requested_root)
+{
+    // In root mode, we are running exec-port as another effective
+    // user `userid`, and the spawned child processes to be the
+    // effective user `userid` by default, unless overriden in the
+    // `{user, User}` option by the executed command (in which case
+    // only users from the `{limit_users, Users}` list are permitted
+    // to be effective users.
 
-    } else if (getuid() == 0 && userid == 0 && !requested_root) {
+    if (is_root && userid == 0 && !requested_root) {
         fprintf(stderr, "Not allowed to run as root without setting effective user (-user option)!\r\n");
         exit(4);
-    } else if (getuid() > 0 && userid == 0 && requested_root) {
+    } else if (!is_root && userid == 0 && requested_root) {
         fprintf(stderr, "Requested to run as root (-user root), but effective user is not root!\r\n");
         exit(4);
-    } else if (userid > 0 && int(getuid()) != userid) {
+    } else if (!is_root && userid > 0 && int(geteuid()) != userid) {
         fprintf(stderr, "Cannot switch effective user to euid=%d\r\n", userid);
         exit(4);
     } else if (!getenv("SHELL") || strcmp(getenv("SHELL"), "") == 0) {
@@ -517,15 +521,22 @@ void initialize(int userid, bool use_alt_fds, bool enable_suid, bool requested_r
         exit(4);
     }
 
+    // (is_root && requested_root && userid > 0)
+    // Make sure that we can switch effective user without issues
+    if (userid > 0 && ei::set_euid(userid) < 0) {
+        fprintf(stderr, "Failed to set effective userid: %s\r\n", strerror(errno));
+        exit(4);
+    }
+
     if (debug)
         fprintf(stderr, "Initializing: uid=%d, userid=%d%s%s\r\n",
-            getuid(), userid, enable_suid ? " enable-suid":"",
+            getuid(), userid, is_root ? " is-root":"",
             requested_root ? " requested-root":"");
 
-    // If we are root, switch to non-root user and set capabilities
+    // If we were root, set capabilities
     // to be able to adjust niceness and run commands as other users.
     // unless run_as_root is set
-    if (userid > 0 && enable_suid) {
+    if (userid > 0 && is_root) {
         #ifdef HAVE_CAP
         if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
             perror("Failed to call prctl to keep capabilities");
@@ -536,12 +547,6 @@ void initialize(int userid, bool use_alt_fds, bool enable_suid, bool requested_r
         struct passwd* pw;
         if (debug && (pw = getpwuid(geteuid())) != NULL)
             fprintf(stderr, "exec: running as: %s (euid=%d)\r\n", pw->pw_name, geteuid());
-
-        if (geteuid() == 0) {
-            fprintf(stderr, "exec: failed to set effective userid to a non-root user %s (uid=%d)\r\n",
-                    pw ? pw->pw_name : "", geteuid());
-            exit(7);
-        }
 
         #ifdef HAVE_CAP
         cap_t cur;
@@ -569,7 +574,6 @@ void initialize(int userid, bool use_alt_fds, bool enable_suid, bool requested_r
             fprintf(stderr, "exec: SHELL variable is not set!\r\n");
             exit(10);
         }
-
     }
 
     #if !defined(NO_SYSCONF)
