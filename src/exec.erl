@@ -682,7 +682,7 @@ init([Options]) ->
                                                        andalso User/=root
                                                        andalso User/="root")) ->
                 % Asked to enable root, but running as non-root, and have SUID: use sudo.
-                lists:append(["/usr/bin/sudo PATH=$PATH ASDF_DATA_DIR=$ASDF_DATA_DIR -u guest ", Exe0, Args]);
+                lists:append(["/usr/bin/sudo PATH=$PATH ASDF_DATA_DIR=$ASDF_DATA_DIR ", Exe0, Args]);
             true ->
                 Exe0++Args
             end,
