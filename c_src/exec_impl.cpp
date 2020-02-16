@@ -340,6 +340,13 @@ pid_t start_child(CmdOptions& op, std::string& error)
 
     pid_t pid = fork();
 
+	// Set the gid of this process to its pid, that way when we set kill_group all the child processes
+	// created by this process will also get killed
+    if (op.kill_group() && op.group() == INT_MAX && setpgid(pid, pid) < 0) {
+        err.write("Could not set forked pgid to %d", pid);
+    } else if (debug > 1)
+        fprintf(stderr, "Setting forked pgid to %d\r\n", pid);
+
     if (pid < 0) {
         error = strerror(errno);
         return pid;
