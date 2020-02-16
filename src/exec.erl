@@ -674,7 +674,7 @@ init([Options]) ->
     {SUID,NeedSudo} = is_suid_and_root_owner(Exe0),
     EffUsr= os:getenv("USER"),
     IsRoot= EffUsr =:= "root",
-    debug(Debug, "SUID: ~p NeedSudo: ~p EffUsr: ~p\n", [SUID, NeedSudo, EffUsr]),
+    debug(Debug, "SUID: ~p NeedSudo: ~p EffUsr: ~p IsRoot: ~p Root: ~p \n", [SUID, NeedSudo, EffUsr, IsRoot, Root]),
     Exe   = if not Root ->
                 Exe0++Args++Vars;
             Root, IsRoot, User/=undefined, User/="", ((SUID     andalso Users/=[]) orelse
@@ -688,7 +688,7 @@ init([Options]) ->
                                                        andalso User/=root
                                                        andalso User/="root")) ->
                 % Asked to enable root, but running as non-root, and have SUID: use sudo.
-                lists:append(["/usr/bin/sudo ", Exe0, Args, Vars]);
+                lists:append(["/usr/bin/sudo ", Vars, " -u ", User, " ", Exe0, Args]);
             true ->
                 Exe0++Args++Vars
             end,
